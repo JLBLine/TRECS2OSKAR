@@ -1,0 +1,2 @@
+catalogue_AGNs_complete_wide_reduced.fits
+catalogue_SFGs_complete_wide_1_reduced.fits

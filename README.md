@@ -42,3 +42,12 @@ The optional arguments `--plot_AGN` and `--plot_SFG` show you examples of the so
 ![](example_AGNs_in_osm.png)
 
 **TODO** The amount of flux split between the core, hoptspots and lobes is hard-coded and the same for all AGN - you probably want to randomise that, and maybe give options to the user for acceptable ranges?
+
+## 4. Visualise OSKAR sky model
+As an added bonus, I've included my attempt at taking an .osm sky model and convolving it with a restoring beam, to anticipate what a perfect CLEANed image of the sky model would look like. It's all hard coded and I haven't had time to comment it, but I've included it in case it's useful for Fred. Currently you just do
+```sh
+python plot_osm.py
+```
+which produces the raw sky model `TRECS_sky_raw.fits` and the instrument convolved `TRECS_sky_convolved.fits` (I haven't included these FITS files because they are >100MB each, but they are quick to generate). The convolved FITS looks like this:
+
+![](kvis_screenshot.png)

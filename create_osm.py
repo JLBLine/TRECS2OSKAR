@@ -17,9 +17,11 @@ parser.add_argument('--TRECS_tables', help='A text file containing a list of red
 parser.add_argument('--freq1', help='center frequency')
 parser.add_argument('--freq2', help='nearby frequency for spectral index calculation')
 parser.add_argument('--osm_name', help='Name for output OSKAR sky model, e.g. --osm_name=TRECS_sky.osm')
+parser.add_argument('--nsources', help='For testing purposes, limit to a fixed number of sources in the .osm',default='-1')
 parser.add_argument('--plot_AGN', help='Include to produce an example plot of the AGN included in the .osm',default=False,action='store_true')
 parser.add_argument('--plot_SFG', help='Include to produce an example plot of the SFG included in the .osm',default=False,action='store_true')
 
+#parser.add_argument('--nsources', help='For testing purposes, limit to a fixed number of sources in the .osm',default=False,action='store_true')
 args = parser.parse_args()
 
 factor = 2. * np.sqrt(2.*np.log(2.))   #conversion FWHM sigma
@@ -42,17 +44,18 @@ def create_AGNs(t,num_sources,outfile):
     '''Takes a reduced TRECS AGN FITS table and turns it into .osm entries'''
     ##Grab the data
     #t = Table.read(fitsfile)
-    ras = t['latitude'] 
-    decs = t['longitude']
-    Snu = t['I'+freqname1]
-    Sdnu = t['I'+freqname2]
+    ras = t['longitude'] 
+    decs = t['latitude']
+    Snu = t['I'+freqname1]#/1000. # mJY-> Jy
+    Sdnu = t['I'+freqname2]#/1000. # mJY-> Jy
     Rs = t['Rs']
     size = t['size']
     pop=t['PopFlag']
     ##Calc Spectral indices
     SIs = np.log10(Snu / Sdnu) / np.log10(freq1 / freq2)
 
-
+    if num_sources <0:
+            num_sources=len(ras)
     ##I needed consistent results when testing before, but you can change or
     ##remove the seed here
     random.seed(9083745)
@@ -177,7 +180,7 @@ def create_AGNs(t,num_sources,outfile):
         fig.savefig('example_AGNs_in_osm.png',bbox_inches='tight')
 
     ##Write the source into the .osm file
-    for ind in np.arange(len(ras)):
+    for ind in np.arange(num_sources):
         if ((size[ind] < 3.*tel_reso_arcmin) or (pop[ind]<6)):  #unresolved steep-spectrum sources or flat-spectrum (sources viewed along the jet axis)
 
             ##point source for the core and a circular Gaussian for the lobe viewed side-on
@@ -195,7 +198,8 @@ def create_AGNs(t,num_sources,outfile):
             outfile.write('%.7f %.7f %.9f 0 0 0 150e+6 %.2f 0 %.2f %.2f %.2f\n' %(ras_1_hot[ind],decs_1_hot[ind],Snu[ind]*hot_frac[ind],SIs[ind],hot_maj[ind],hot_min[ind],pa[ind]*(180/pi)))
             outfile.write('%.7f %.7f %.9f 0 0 0 150e+6 %.2f 0 %.2f %.2f %.2f\n' %(ras_2_hot[ind],decs_2_hot[ind],Snu[ind]*hot_frac[ind],SIs[ind],hot_maj[ind],hot_min[ind],pa[ind]*(180/pi)))
     #
-    return num_sources + len(ras)
+     #return num_sources + len(ras)
+    return num_sources #+ num_sources
 
 def create_SFGs(t,num_sources,outfile):
     '''Takes a reduced TRECS SFG FITS table and turns it into .osm entries'''
@@ -203,10 +207,10 @@ def create_SFGs(t,num_sources,outfile):
   
     
     #t = Table.read(fitsfile)
-    ras = t['latitude'] 
-    decs = t['longitude']
-    Snu = t['I'+freqname1]
-    Sdnu = t['I'+freqname2]
+    ras = t['longitude'] 
+    decs = t['latitude']
+    Snu = t['I'+freqname1]#/1000. #mJy -> Jy
+    Sdnu = t['I'+freqname2]#/1000. #mJy -> Jy
     e1 = t['e1']
     e2 = t['e2']
     size = t['size']
@@ -214,6 +218,8 @@ def create_SFGs(t,num_sources,outfile):
     ##Calc Spectral indices
     SIs = np.log10(Snu / Sdnu) / np.log10(freq1 / freq2)
 
+    if num_sources <0:
+            num_sources=len(ras)
     ##Calc PA and Bmaj/Bmin from ellipticity parameters e1,e2
     pa=size*0. 
     emod=np.sqrt(e1**2+e2**2)
@@ -253,7 +259,7 @@ def create_SFGs(t,num_sources,outfile):
 
 
        
-    for ind in np.arange(len(ras)):
+    for ind in np.arange(num_sources):
 
         if size[ind] < 3.*tel_reso_arcmin:
             ##If less than 3 beams, just stick in a point source
@@ -261,23 +267,30 @@ def create_SFGs(t,num_sources,outfile):
         else:
             ##Then write a gaussian
             outfile.write('%.7f %.7f %.9f 0 0 0 150e+6 %.2f 0 %.2f %.2f %.2f\n' %(ras[ind],decs[ind],Snu[ind],SIs[ind],maj_ax[ind],min_ax[ind],pa[ind]))
-    return num_sources + len(ras)
+    return num_sources #+ num_sources
 
 num_sources = 0
 outfile = open(args.osm_name,'w+')
-
+print(args.nsources)
+nsources=int(args.nsources)
+if nsources >0:
+    print('Limiting sky model to '+args.nsources+' sources')
+ 
+    
 with open(args.TRECS_tables) as f:files=f.readlines()
 
 for file in files:
     print('file=',file)
     file=file.split('\n')
     t = Table.read(file[0])
-    print('reading done')
+   
     pop = t['PopFlag']
 
-    if (max(pop) <=3.): #SFGs 
+    if (max(pop) <=3.): #SFGs
+        num_sources=nsources
         num_sources = create_SFGs(t,num_sources,outfile)
     else:               #AGNs
+        num_sources=nsources
         num_sources = create_AGNs(t,num_sources,outfile)
 
     print('Sky model contains %d sources' %num_sources)

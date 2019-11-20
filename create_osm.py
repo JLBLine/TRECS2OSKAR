@@ -39,15 +39,14 @@ freq2=float(freqname2)
 tel_reso = (VELC / freq1/1.e+6) / bmax
 tel_reso_arcmin=tel_reso/D2R*3600.
 
-
 def create_AGNs(t,num_sources,outfile):
     '''Takes a reduced TRECS AGN FITS table and turns it into .osm entries'''
     ##Grab the data
     #t = Table.read(fitsfile)
     ras = t['longitude'] 
     decs = t['latitude']
-    Snu = t['I'+freqname1]#/1000. # mJY-> Jy
-    Sdnu = t['I'+freqname2]#/1000. # mJY-> Jy
+    Snu = t['I'+freqname1]/1000. # mJY-> Jy
+    Sdnu = t['I'+freqname2]/1000. # mJY-> Jy
     Rs = t['Rs']
     size = t['size']
     pop=t['PopFlag']
@@ -181,17 +180,18 @@ def create_AGNs(t,num_sources,outfile):
 
     ##Write the source into the .osm file
     for ind in np.arange(num_sources):
-        if ((size[ind] < 3.*tel_reso_arcmin) or (pop[ind]<6)):  #unresolved steep-spectrum sources or flat-spectrum (sources viewed along the jet axis)
-
-            ##point source for the core and a circular Gaussian for the lobe viewed side-on
-            outfile.write('%.7f %.7f %.9f 0 0 0 150e+6 %.2f 0 0 0 0\n' %(ras[ind],decs[ind],Snu[ind]*core_frac[ind],SIs[ind]))
-            outfile.write('%.7f %.7f %.9f 0 0 0 150e+6 %.2f 0 %.2f %.2f %.2f\n' %(ras[ind],decs[ind],Snu[ind]*(1.-core_frac[ind]),SIs[ind],size_fwhm[ind],size_fwhm[ind],pa[ind]*(180/pi)))  
+        if ((size[ind] < tel_reso_arcmin*60.) or (pop[ind]<6)):  #unresolved steep-spectrum sources or flat-spectrum (sources viewed along the jet axis)
+            
+            ##Point source for the core and a circular Gaussian for the lobe viewed side-on
+             outfile.write('%.7f %.7f %.9f 0 0 0 150e+6 %.2f 0 0 0 0\n' %(ras[ind],decs[ind],Snu[ind]*core_frac[ind],SIs[ind]))
+             outfile.write('%.7f %.7f %.9f 0 0 0 150e+6 %.2f 0 %.2f %.2f %.2f\n' %(ras[ind],decs[ind],Snu[ind]*(1.-core_frac[ind]),SIs[ind],size_fwhm[ind],size_fwhm[ind],pa[ind]*(180/pi)))  
 
         else:
 
             ##Write out core - assume is a point source
             ##Scale the flux according the settings above
             #point source for core, 2 gaussian lobes, two gaussian hot spots for the steep-spectrum resolved sources
+            #print('AGN',size[ind],pa[ind]/D2R)
             outfile.write('%.7f %.7f %.9f 0 0 0 150e+6 %.2f 0 0 0 0\n' %(ras[ind],decs[ind],Snu[ind]*core_frac[ind],SIs[ind]))
             outfile.write('%.7f %.7f %.9f 0 0 0 150e+6 %.2f 0 %.2f %.2f %.2f\n' %(ras_1_lobe[ind],decs_1_lobe[ind],Snu[ind]*lobe_frac[ind],SIs[ind],lobe_maj[ind],lobe_min[ind],pa[ind]*(180/pi)))
             outfile.write('%.7f %.7f %.9f 0 0 0 150e+6 %.2f 0 %.2f %.2f %.2f\n' %(ras_2_lobe[ind],decs_2_lobe[ind],Snu[ind]*lobe_frac[ind],SIs[ind],lobe_maj[ind],lobe_min[ind],pa[ind]*(180/pi)))
@@ -209,8 +209,8 @@ def create_SFGs(t,num_sources,outfile):
     #t = Table.read(fitsfile)
     ras = t['longitude'] 
     decs = t['latitude']
-    Snu = t['I'+freqname1]#/1000. #mJy -> Jy
-    Sdnu = t['I'+freqname2]#/1000. #mJy -> Jy
+    Snu = t['I'+freqname1]/1000. #mJy -> Jy
+    Sdnu = t['I'+freqname2]/1000. #mJy -> Jy
     e1 = t['e1']
     e2 = t['e2']
     size = t['size']
@@ -261,11 +261,12 @@ def create_SFGs(t,num_sources,outfile):
        
     for ind in np.arange(num_sources):
 
-        if size[ind] < 3.*tel_reso_arcmin:
+        if size[ind] < 60.*tel_reso_arcmin:
             ##If less than 3 beams, just stick in a point source
-            outfile.write('%.7f %.7f %.9f 0 0 0 150e+6 %.2f 0 0 0 0\n' %(ras[ind],decs[ind],Snu[ind],SIs[ind]))
+             outfile.write('%.7f %.7f %.9f 0 0 0 150e+6 %.2f 0 0 0 0\n' %(ras[ind],decs[ind],Snu[ind],SIs[ind]))
         else:
             ##Then write a gaussian
+            #print('sfg',size[ind],pa[ind])
             outfile.write('%.7f %.7f %.9f 0 0 0 150e+6 %.2f 0 %.2f %.2f %.2f\n' %(ras[ind],decs[ind],Snu[ind],SIs[ind],maj_ax[ind],min_ax[ind],pa[ind]))
     return num_sources #+ num_sources
 
@@ -283,7 +284,6 @@ for file in files:
     print('file=',file)
     file=file.split('\n')
     t = Table.read(file[0])
-   
     pop = t['PopFlag']
 
     if (max(pop) <=3.): #SFGs

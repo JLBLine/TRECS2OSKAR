@@ -132,14 +132,15 @@ def create_AGNs(t,num_sources,outfile):
 
  
     if args.plot_AGN:
-        ##Plot the 10 largest AGN
-        large = np.where((size > 300)) #and (pop ==6))
+        ##Find the order of the biggest galaxies, with largest first
+        idx_order = np.argsort(size)[::-1]
+        ##Plot the 9 largest galaxies
         fig = plt.figure(figsize=(10,10))
-        for plot,ind in enumerate(large[0][:9]):
+        for plot,ind in enumerate(idx_order[:9]):
             ax = fig.add_subplot(3,3,plot+1)
 
             num_pixels = 101
-            plot_width = size[ind] / (2*3600.0)
+            plot_width = size[ind] / (1*3600.0)
             x_range = np.linspace(ras[ind] - plot_width,ras[ind] + plot_width,num_pixels)
             y_range = np.linspace(decs[ind] - plot_width,decs[ind] + plot_width,num_pixels)
 
@@ -174,12 +175,18 @@ def create_AGNs(t,num_sources,outfile):
             gal_array[num_pixels // 2,num_pixels // 2] += Snu[ind]*core_frac[ind]
 
             im = ax.imshow(gal_array,origin='lower',extent=[x_range[0],x_range[-1],y_range[0],y_range[-1]],vmax=np.mean(gal_array)+2.*np.std(gal_array))
-
+            
+            if plot in [6,7,8]:
+                ax.set_xlabel('RA (deg)')
+            if plot in [0,3,6]:
+                ax.set_ylabel('Dec (deg)')
         plt.tight_layout()
         fig.savefig('example_AGNs_in_osm.png',bbox_inches='tight')
 
     ##Write the source into the .osm file
-    for ind in np.arange(num_sources):
+    ##Go from brightest to dimmest
+    idx_bright = np.argsort(Snu)[::-1]
+    for ind in idx_bright[:num_sources]:
         if ((size[ind] < tel_reso_arcmin*60.) or (pop[ind]<6)):  #unresolved steep-spectrum sources or flat-spectrum (sources viewed along the jet axis)
             
             ##Point source for the core and a circular Gaussian for the lobe viewed side-on
@@ -231,13 +238,15 @@ def create_SFGs(t,num_sources,outfile):
     min_ax=q*maj_ax # minor axis
     
     if args.plot_SFG:
-        large = np.where((size > 100))
+        ##Find the order of the biggest galaxies, with largest first
+        idx_order = np.argsort(size)[::-1]
+        ##Plot the 9 largest galaxies
         fig = plt.figure(figsize=(10,10))
-        for plot,ind in enumerate(large[0][:9]):
+        for plot,ind in enumerate(idx_order[:9]):
             ax = fig.add_subplot(3,3,plot+1)
 
             num_pixels = 101
-            plot_width = size[ind] / (2.*3600.0)
+            plot_width = size[ind] / (1.*3600.0)
             x_range = np.linspace(ras[ind] - plot_width,ras[ind] + plot_width,num_pixels)
             y_range = np.linspace(decs[ind] - plot_width,decs[ind] + plot_width,num_pixels)
             x_mesh, y_mesh = np.meshgrid(x_range,y_range)
@@ -247,19 +256,24 @@ def create_SFGs(t,num_sources,outfile):
             x_stddev = maj_ax[ind] / (factor*3600.0)
             y_stddev = min_ax[ind] / (factor*3600.0)
 
-            sfg_func = Gaussian2D(amplitude=Snu[ind], x_mean=ras[ind], y_mean=decs[ind], x_stddev=x_stddev, y_stddev=y_stddev,theta=pi/2 + pa[ind]/180.*pi)  
+            sfg_func = Gaussian2D(amplitude=Snu[ind], x_mean=ras[ind], y_mean=decs[ind], x_stddev=x_stddev, y_stddev=y_stddev,theta=pi/2 + pa[ind]*(pi/180.0))  
 
             sfg = sfg_func(x_mesh,y_mesh)
             sfg *=  Snu[ind]*sfg / sfg.sum()
 
             im = ax.imshow(sfg,origin='lower',extent=[x_range[0],x_range[-1],y_range[0],y_range[-1]])
+            
+            if plot in [6,7,8]:
+                ax.set_xlabel('RA (deg)')
+            if plot in [0,3,6]:
+                ax.set_ylabel('Dec (deg)')
 
         plt.tight_layout()
         fig.savefig('example_SFGs_in_osm.png',bbox_inches='tight')
 
 
-       
-    for ind in np.arange(num_sources):
+    idx_bright = np.argsort(Snu)[::-1]
+    for ind in idx_bright[:num_sources]:
 
         if size[ind] < 60.*tel_reso_arcmin:
             ##If less than 3 beams, just stick in a point source
